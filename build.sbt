@@ -33,8 +33,15 @@ lazy val `pg-monix` = project.settings(commonSettings: _*).settings(
   libraryDependencies ++= Seq(
     "com.avsystem.commons" %% "commons-mongo" % Version.AvsCommons,
     "com.avsystem.commons" %% "commons-redis" % Version.AvsCommons,
+    "io.udash" %% "udash-rest" % Version.UdashRest,
+    "io.udash" %% "udash-rest-jetty" % Version.UdashRest,
     "io.monix" %% "monix" % Version.Monix,
     "io.monix" %% "monix-bio" % Version.MonixBio,
+    "org.eclipse.jetty" % "jetty-server" % Version.Jetty,
+    "org.eclipse.jetty" % "jetty-servlet" % Version.Jetty,
+    "org.eclipse.jetty" % "jetty-client" % Version.Jetty,
+    "dev.zio" %% "zio" % Version.Zio,
+    "dev.zio" %% "zio-streams" % Version.Zio,
   )
 )
 
@@ -42,5 +49,8 @@ lazy val `pg-cats` = project.settings(commonSettings: _*).settings(
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-free" % Version.CatsFree,
     "org.typelevel" %% "cats-effect" % Version.CatsEffect,
+    "co.fs2" %% "fs2-core" % Version.Fs2,
+    "co.fs2" %% "fs2-io" % Version.Fs2,
+    "co.fs2" %% "fs2-reactive-streams" % Version.Fs2,
   )
 )
