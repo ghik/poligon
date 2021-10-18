@@ -42,6 +42,13 @@ lazy val `pg-monix` = project.settings(commonSettings: _*).settings(
     "org.eclipse.jetty" % "jetty-client" % Version.Jetty,
     "dev.zio" %% "zio" % Version.Zio,
     "dev.zio" %% "zio-streams" % Version.Zio,
+    "io.netty" % "netty-all" % Version.Netty,
+    "com.typesafe.akka" %% "akka-actor" % Version.Akka,
+    "com.typesafe.akka" %% "akka-actor-typed" % Version.Akka,
+    "com.typesafe.akka" %% "akka-stream" % Version.Akka,
+    "com.typesafe.akka" %% "akka-stream-typed" % Version.Akka,
+    "com.typesafe.akka" %% "akka-cluster" % Version.Akka,
+    "com.typesafe.akka" %% "akka-http" % Version.AkkaHttp,
   )
 )
 

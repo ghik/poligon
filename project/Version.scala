@@ -8,4 +8,7 @@ object Version {
   final val UdashRest = "0.9.0-M18"
   final val Jetty = "9.4.37.v20210219"
   final val Zio = "1.0.12"
+  final val Netty = "4.1.69.Final"
+  final val Akka = "2.6.17"
+  final val AkkaHttp = "10.2.6"
 }
