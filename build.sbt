@@ -29,10 +29,15 @@ val commonSettings = Seq(
   )
 )
 
-lazy val `pg-monix` = project.settings(commonSettings: _*).settings(
+lazy val `pg-macros` = project.settings(commonSettings: _*).settings(
+
+)
+
+lazy val `pg-monix` = project.settings(commonSettings: _*).dependsOn(`pg-macros`).settings(
   libraryDependencies ++= Seq(
     "com.avsystem.commons" %% "commons-mongo" % Version.AvsCommons,
     "com.avsystem.commons" %% "commons-redis" % Version.AvsCommons,
+    "org.mongodb" % "mongodb-driver-reactivestreams" % Version.Mongodb,
     "io.udash" %% "udash-rest" % Version.UdashRest,
     "io.udash" %% "udash-rest-jetty" % Version.UdashRest,
     "io.monix" %% "monix" % Version.Monix,
@@ -49,6 +54,7 @@ lazy val `pg-monix` = project.settings(commonSettings: _*).settings(
     "com.typesafe.akka" %% "akka-stream-typed" % Version.Akka,
     "com.typesafe.akka" %% "akka-cluster" % Version.Akka,
     "com.typesafe.akka" %% "akka-http" % Version.AkkaHttp,
+    "io.micrometer" % "micrometer-registry-prometheus" % Version.Micrometer,
   )
 )
 
@@ -59,5 +65,6 @@ lazy val `pg-cats` = project.settings(commonSettings: _*).settings(
     "co.fs2" %% "fs2-core" % Version.Fs2,
     "co.fs2" %% "fs2-io" % Version.Fs2,
     "co.fs2" %% "fs2-reactive-streams" % Version.Fs2,
+    "org.scalatest" %% "scalatest" % "3.2.9" % Test,
   )
 )
