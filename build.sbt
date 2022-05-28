@@ -16,7 +16,8 @@ val commonSettings = Seq(
     "-language:experimental.macros",
     "-language:higherKinds",
     "-Xfatal-warnings",
-    "-Xlint:-missing-interpolator,-adapted-args,-unused,_",
+    "-Xlint:_,-strict-unsealed-patmat,-missing-interpolator,-adapted-args,-unused",
+    "-Xnon-strict-patmat-analysis",
     "-Ycache-plugin-class-loader:last-modified",
     "-Ycache-macro-class-loader:last-modified",
   ),
@@ -55,6 +56,9 @@ lazy val `pg-monix` = project.settings(commonSettings: _*).dependsOn(`pg-macros`
     "com.typesafe.akka" %% "akka-cluster" % Version.Akka,
     "com.typesafe.akka" %% "akka-http" % Version.AkkaHttp,
     "io.micrometer" % "micrometer-registry-prometheus" % Version.Micrometer,
+    "co.fs2" %% "fs2-core" % Version.Fs2_2,
+    "co.fs2" %% "fs2-io" % Version.Fs2_2,
+    "co.fs2" %% "fs2-reactive-streams" % Version.Fs2_2,
   )
 )
 
@@ -62,9 +66,9 @@ lazy val `pg-cats` = project.settings(commonSettings: _*).settings(
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-free" % Version.CatsFree,
     "org.typelevel" %% "cats-effect" % Version.CatsEffect,
-    "co.fs2" %% "fs2-core" % Version.Fs2,
-    "co.fs2" %% "fs2-io" % Version.Fs2,
-    "co.fs2" %% "fs2-reactive-streams" % Version.Fs2,
+    "co.fs2" %% "fs2-core" % Version.Fs2_3,
+    "co.fs2" %% "fs2-io" % Version.Fs2_3,
+    "co.fs2" %% "fs2-reactive-streams" % Version.Fs2_3,
     "org.scalatest" %% "scalatest" % "3.2.9" % Test,
   )
 )
