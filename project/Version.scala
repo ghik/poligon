@@ -14,4 +14,5 @@ object Version {
   final val AkkaHttp = "10.2.6"
   final val Mongodb = "4.4.0"
   final val Micrometer = "1.8.2"
+  final val Grpc = "1.46.0"
 }

@@ -59,6 +59,9 @@ lazy val `pg-monix` = project.settings(commonSettings: _*).dependsOn(`pg-macros`
     "co.fs2" %% "fs2-core" % Version.Fs2_2,
     "co.fs2" %% "fs2-io" % Version.Fs2_2,
     "co.fs2" %% "fs2-reactive-streams" % Version.Fs2_2,
+    "io.grpc" % "grpc-core" % Version.Grpc,
+    "io.grpc" % "grpc-netty-shaded" % Version.Grpc,
+    "io.grpc" % "grpc-protobuf" % Version.Grpc,
   )
 )
 
