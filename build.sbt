@@ -62,6 +62,9 @@ lazy val `pg-monix` = project.settings(commonSettings: _*).dependsOn(`pg-macros`
     "io.grpc" % "grpc-core" % Version.Grpc,
     "io.grpc" % "grpc-netty-shaded" % Version.Grpc,
     "io.grpc" % "grpc-protobuf" % Version.Grpc,
+    "org.apache.avro" % "avro" % Version.Avro,
+    "org.apache.avro" % "avro-grpc" % Version.Avro,
+    "com.sksamuel.avro4s" %% "avro4s-core" % Version.Avro4s,
   )
 )
 
