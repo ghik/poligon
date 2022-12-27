@@ -5,18 +5,35 @@ import com.avsystem.commons.annotation.positioned
 import com.avsystem.commons.meta._
 import com.avsystem.commons.misc.{Bytes, Timestamp}
 import com.avsystem.commons.serialization._
-import com.avsystem.commons.serialization.cbor.CborOptimizedCodecs
+import com.avsystem.commons.serialization.cbor.{CborOptimizedCodecs, RawCbor}
+import com.github.ghik.poligon.cborpc.CborAdtSchemaFor.NameInfo
 
-trait CborSchemaFor[T] {
-  def schema: CborSchema
+trait CborSchemaFor[T] { self =>
+  def dependencies: IIterable[CborSchemaFor[_]]
+  def directSchema: DirectCborSchema
+  def nameOpt: Opt[String] = Opt.Empty
+
+  final def schema: CborSchema =
+    nameOpt.mapOr(directSchema, CborSchema.Reference)
 
   final def forType[U]: CborSchemaFor[U] =
     this.asInstanceOf[CborSchemaFor[U]]
+
+  final def map[U](f: CborSchema => DirectCborSchema): CborSchemaFor[U] =
+    new CborSchemaFor[U] {
+      def dependencies: IIterable[CborSchemaFor[_]] = self.dependencies
+      def directSchema: DirectCborSchema = f(self.schema)
+    }
 }
 
-sealed trait CborAdtSchemaFor[T] extends CborSchemaFor[T] with TypedMetadata[T]
+sealed trait CborAdtSchemaFor[T] extends CborSchemaFor[T] with TypedMetadata[T] {
+  protected def nameInfo: NameInfo
+
+  final def name: String = nameInfo.rawName
+  override final def nameOpt: Opt[String] = name.opt
+}
 object CborAdtSchemaFor extends AdtMetadataCompanion[CborAdtSchemaFor] {
-  case class NameInfo(
+  final case class NameInfo(
     @reifyName sourceName: String,
     @optional @reifyAnnot annotName: Opt[name],
   ) {
@@ -26,9 +43,12 @@ object CborAdtSchemaFor extends AdtMetadataCompanion[CborAdtSchemaFor] {
   @positioned(positioned.here)
   final class Union[T](
     @reifyAnnot flatten: flatten,
-    @multi @adtCaseMetadata cases: List[UnionCase[_]],
+    @composite val nameInfo: NameInfo,
+    @multi @adtCaseMetadata val cases: List[UnionCase[_]],
   ) extends CborAdtSchemaFor[T] {
-    lazy val schema: CborSchema.Union = CborSchema.Union(
+    def dependencies: IIterable[CborSchemaFor[_]] = cases
+
+    def directSchema: CborSchema.Union = CborSchema.Union(
       cases.map(_.rawCase),
       cases.findOpt(_.defaultCase).map(_.nameInfo.rawName)
     )
@@ -37,41 +57,47 @@ object CborAdtSchemaFor extends AdtMetadataCompanion[CborAdtSchemaFor] {
   sealed trait UnionCase[T] extends CborAdtSchemaFor[T] {
     def nameInfo: NameInfo
     def defaultCase: Boolean
-    def schema: CborSchema.Record
+    def directSchema: CborSchema.Record
 
-    final def rawCase: CborSchema.Case = CborSchema.Case(nameInfo.rawName, schema)
+    final def rawCase: CborSchema.Case =
+      CborSchema.Case(nameInfo.rawName, directSchema)
   }
 
   @positioned(positioned.here)
   final class Record[T](
     @composite val nameInfo: NameInfo,
     @isAnnotated[defaultCase] val defaultCase: Boolean,
-    @multi @adtParamMetadata fields: List[Field[_]]
+    @multi @adtParamMetadata val fields: List[Field[_]],
   ) extends UnionCase[T] {
-    lazy val schema: CborSchema.Record = CborSchema.Record(fields.map(_.rawField))
+    def directSchema: CborSchema.Record =
+      CborSchema.Record(fields.map(_.rawField))
+
+    def dependencies: IIterable[CborSchemaFor[_]] =
+      fields.map(_.schemaFor)
   }
 
   @positioned(positioned.here)
   final class Singleton[T](
     @composite val nameInfo: NameInfo,
     @isAnnotated[defaultCase] val defaultCase: Boolean,
-    @infer @checked valueOf: ValueOf[T]
+    @infer @checked val valueOf: ValueOf[T],
   ) extends UnionCase[T] {
-    def schema: CborSchema.Record = CborSchema.Record(Nil)
+    def directSchema: CborSchema.Record = CborSchema.Record(Nil)
+    def dependencies: IIterable[CborSchemaFor[_]] = Nil
   }
 
   final class Field[T](
-    @composite nameInfo: NameInfo,
+    @composite val nameInfo: NameInfo,
     @isAnnotated[optionalParam] optional: Boolean,
     @isAnnotated[whenAbsent[T]] hasWhenAbsent: Boolean,
     @isAnnotated[transientDefault] transientDefault: Boolean,
     @reifyFlags flags: ParamFlags,
-    @infer dataType: CborSchemaFor[T],
+    @infer val schemaFor: CborSchemaFor[T],
   ) extends TypedMetadata[T] {
 
     def rawField: CborSchema.Field = CborSchema.Field(
       nameInfo.rawName,
-      dataType.schema,
+      schemaFor.schema,
       optional,
       flags.hasDefaultValue || hasWhenAbsent,
       transientDefault,
@@ -94,42 +120,53 @@ abstract class CborAdtCompanion[T](implicit
 object CborSchemaFor {
   def apply[T](implicit dt: CborSchemaFor[T]): CborSchemaFor[T] = dt
 
-  def plain[T](theSchema: CborSchema): CborSchemaFor[T] =
+  def primitive[T](tpe: CborType): CborSchemaFor[T] =
     new CborSchemaFor[T] {
-      def schema: CborSchema = theSchema
+      def directSchema: DirectCborSchema = CborSchema.Primitive(tpe)
+      def dependencies: IIterable[CborSchemaFor[_]] = Nil
     }
 
-  implicit val UnitType: CborSchemaFor[Unit] = plain(CborSchema.Primitive(CborType.Null))
-  implicit val BooleanType: CborSchemaFor[Boolean] = plain(CborSchema.Primitive(CborType.Boolean))
-  implicit val CharType: CborSchemaFor[Char] = plain(CborSchema.Primitive(CborType.Char))
-  implicit val ByteType: CborSchemaFor[Byte] = plain(CborSchema.Primitive(CborType.Byte))
-  implicit val ShortType: CborSchemaFor[Short] = plain(CborSchema.Primitive(CborType.Short))
-  implicit val IntType: CborSchemaFor[Int] = plain(CborSchema.Primitive(CborType.Int))
-  implicit val LongType: CborSchemaFor[Long] = plain(CborSchema.Primitive(CborType.Long))
-  implicit val FloatType: CborSchemaFor[Float] = plain(CborSchema.Primitive(CborType.Float))
-  implicit val DoubleType: CborSchemaFor[Double] = plain(CborSchema.Primitive(CborType.Double))
-  implicit val StringType: CborSchemaFor[String] = plain(CborSchema.Primitive(CborType.String))
-  implicit val TimestampType: CborSchemaFor[Timestamp] = plain(CborSchema.Primitive(CborType.Timestamp))
-  implicit val ByteArrayType: CborSchemaFor[Array[Byte]] = plain(CborSchema.Primitive(CborType.Binary))
-  implicit val BytesType: CborSchemaFor[Bytes] = plain(CborSchema.Primitive(CborType.Binary))
+  implicit val UnitType: CborSchemaFor[Unit] = primitive(CborType.Null)
+  implicit val BooleanType: CborSchemaFor[Boolean] = primitive(CborType.Boolean)
+  implicit val CharType: CborSchemaFor[Char] = primitive(CborType.Char)
+  implicit val ByteType: CborSchemaFor[Byte] = primitive(CborType.Byte)
+  implicit val ShortType: CborSchemaFor[Short] = primitive(CborType.Short)
+  implicit val IntType: CborSchemaFor[Int] = primitive(CborType.Int)
+  implicit val LongType: CborSchemaFor[Long] = primitive(CborType.Long)
+  implicit val FloatType: CborSchemaFor[Float] = primitive(CborType.Float)
+  implicit val DoubleType: CborSchemaFor[Double] = primitive(CborType.Double)
+  implicit val StringType: CborSchemaFor[String] = primitive(CborType.String)
+  implicit val TimestampType: CborSchemaFor[Timestamp] = primitive(CborType.Timestamp)
+  implicit val ByteArrayType: CborSchemaFor[Array[Byte]] = primitive(CborType.Binary)
+  implicit val BytesType: CborSchemaFor[Bytes] = primitive(CborType.Binary)
+  implicit val RawType: CborSchemaFor[RawCbor] = primitive(CborType.Raw)
 
   implicit def optionType[T: CborSchemaFor]: CborSchemaFor[Option[T]] =
-    plain(CborSchema.Nullable(CborSchemaFor[T].schema))
+    CborSchemaFor[T].map(CborSchema.Nullable)
 
   implicit def optType[T: CborSchemaFor]: CborSchemaFor[Opt[T]] =
-    plain(CborSchema.Nullable(CborSchemaFor[T].schema))
+    CborSchemaFor[T].map(CborSchema.Nullable)
 
   implicit def optArgType[T: CborSchemaFor]: CborSchemaFor[OptArg[T]] =
-    plain(CborSchema.Nullable(CborSchemaFor[T].schema))
+    CborSchemaFor[T].map(CborSchema.Nullable)
 
   implicit def seqType[C[X] <: BSeq[X], T: CborSchemaFor]: CborSchemaFor[C[T]] =
-    plain(CborSchema.Collection(CborSchemaFor[T].schema))
+    CborSchemaFor[T].map(CborSchema.Collection)
 
   implicit def setType[C[X] <: BSet[X], T: CborSchemaFor]: CborSchemaFor[C[T]] =
-    plain(CborSchema.Collection(CborSchemaFor[T].schema))
+    CborSchemaFor[T].map(CborSchema.Collection)
+
+  def map2[A: CborSchemaFor, B: CborSchemaFor, C](
+    f: (CborSchema, CborSchema) => DirectCborSchema
+  ): CborSchemaFor[C] = new CborSchemaFor[C] {
+    def dependencies: IIterable[CborSchemaFor[_]] =
+      List(CborSchemaFor[A], CborSchemaFor[B])
+    def directSchema: DirectCborSchema =
+      f(CborSchemaFor[A].schema, CborSchemaFor[B].schema)
+  }
 
   implicit def mapType[M[X, Y] <: BMap[X, Y], K: CborSchemaFor, V: CborSchemaFor]: CborSchemaFor[M[K, V]] =
-    plain(CborSchema.Dictionary(CborSchemaFor[K].schema, CborSchemaFor[V].schema))
+    map2[K, V, M[K, V]](CborSchema.Dictionary)
 
   implicit def transparentWrapperType[R, T](implicit
     tw: TransparentWrapping[R, T], wrappedType: CborSchemaFor[R]

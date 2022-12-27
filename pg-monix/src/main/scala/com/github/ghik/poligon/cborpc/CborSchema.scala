@@ -27,51 +27,24 @@ object CborType extends AbstractValueEnumCompanion[CborType] {
   final val String, Timestamp, Binary, Raw: Value = new CborType
 }
 
-@flatten("case") sealed trait CborSchema {
-  import CborSchema._
+@flatten("case") sealed trait CborSchema
 
-  final def canRead(written: CborSchema): Boolean = (this, written) match {
-    case (Primitive(rtpe), Primitive(wtpe)) => rtpe.canRead(wtpe)
+/**
+ * A [[CborSchema]] that is not a [[CborSchema.Reference]]
+ * (although it may contain references).
+ */
+sealed trait DirectCborSchema extends CborSchema
 
-    case (Nullable(_), Primitive(CborType.Null)) => true
-    case (Nullable(_), Nullable(wschema)) => this.canRead(wschema)
-    case (Nullable(rschema), wschema) => rschema.canRead(wschema)
-
-    case (Tuple(relems), Tuple(welems)) => relems.corresponds(welems)(_ canRead _)
-
-    case (Collection(relem), Collection(welem)) => relem.canRead(welem)
-    case (Collection(relem), Tuple(welems)) => welems.forall(relem.canRead)
-
-    case (Dictionary(rkey, rvalue), Dictionary(wkey, wvalue)) => rkey.canRead(wkey) && rvalue.canRead(wvalue)
-
-    case (rrec: Record, wrec: Record) =>
-      rrec.fields.forall { wfield =>
-        wrec.fieldMap.get(wfield.name) match {
-          case Some(wf) => (wfield.optionalOnRead || !wf.optionalOnWrite) && wfield.schema.canRead(wf.schema)
-          case None => wfield.optionalOnRead
-        }
-      }
-
-    case (runion: Union, wunion: Union) =>
-      wunion.cases.forall { wcase =>
-        runion.caseMap.get(wcase.name).exists(_.schema.canRead(wcase.schema))
-      }
-
-    case (runion: Union, wrec: Record) =>
-      runion.defaultCase.map(runion.caseMap).exists(_.schema.canRead(wrec))
-
-    case _ =>
-      false
-  }
-}
 object CborSchema extends HasGenCodec[CborSchema] {
-  final case class Primitive(tpe: CborType) extends CborSchema
-  final case class Nullable(schema: CborSchema) extends CborSchema
-  final case class Tuple(elemSchemas: Seq[CborSchema]) extends CborSchema
-  final case class Collection(elemSchema: CborSchema) extends CborSchema
-  final case class Dictionary(keySchema: CborSchema, valueSchema: CborSchema) extends CborSchema
+  final case class Reference(name: String) extends CborSchema
 
-  final case class Record(fields: Seq[Field]) extends CborSchema {
+  final case class Primitive(tpe: CborType) extends DirectCborSchema
+  final case class Nullable(schema: CborSchema) extends DirectCborSchema
+  final case class Tuple(elemSchemas: Seq[CborSchema]) extends DirectCborSchema
+  final case class Collection(elemSchema: CborSchema) extends DirectCborSchema
+  final case class Dictionary(keySchema: CborSchema, valueSchema: CborSchema) extends DirectCborSchema
+
+  final case class Record(fields: Seq[Field]) extends DirectCborSchema {
     lazy val fieldMap: Map[String, Field] = fields.toMapBy(_.name)
 
     def toCborAdtMetadata[T](name: String, idx: Int): CborAdtMetadata.Record[T] =
@@ -88,7 +61,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
   }
   object Record extends HasGenCodec[Record]
 
-  final case class Union(cases: Seq[Case], @optionalParam defaultCase: Opt[String]) extends CborSchema {
+  final case class Union(cases: Seq[Case], @optionalParam defaultCase: Opt[String]) extends DirectCborSchema {
     lazy val caseMap: Map[String, Case] = cases.toMapBy(_.name)
 
     def toCborAdtMetadata[T](name: String): CborAdtMetadata.Union[T] =
@@ -124,13 +97,6 @@ object CborSchema extends HasGenCodec[CborSchema] {
 
 final case class CborApi(methods: Seq[CborApi.Method]) {
   val methodMap: Map[String, CborApi.Method] = methods.toMapBy(_.name)
-
-  def canAccept(client: CborApi): Boolean =
-    client.methods.forall { cmethod =>
-      methodMap.get(cmethod.name).exists { smethod =>
-        smethod.input.canRead(cmethod.input) && smethod.result.canAccept(cmethod.result)
-      }
-    }
 }
 object CborApi {
   final case class Method(
@@ -139,17 +105,7 @@ object CborApi {
     result: MethodResult,
   )
 
-  sealed trait MethodResult {
-    import MethodResult._
-
-    def canAccept(client: MethodResult): Boolean = (this, client) match {
-      case (SubApi(ssubapi), SubApi(csubapi)) => ssubapi.canAccept(csubapi)
-      case (Single(sschema), Single(cschema)) => cschema.canRead(sschema)
-      case (Single(sschema), Stream(cschema)) => cschema.canRead(sschema) // can accept single element as stream
-      case (Stream(sschema), Stream(cschema)) => cschema.canRead(sschema)
-      case _ => false
-    }
-  }
+  sealed trait MethodResult
   object MethodResult {
     final case class SubApi(subapi: CborApi) extends MethodResult
     final case class Single(schema: CborSchema) extends MethodResult
