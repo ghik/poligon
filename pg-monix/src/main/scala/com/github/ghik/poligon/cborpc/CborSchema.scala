@@ -6,10 +6,10 @@ import com.avsystem.commons.serialization._
 import com.avsystem.commons.serialization.cbor.CborAdtMetadata.CborKeyInfo
 import com.avsystem.commons.serialization.cbor.{CborAdtMetadata, cborDiscriminator, cborKey}
 
-final class CborType(implicit enumCtx: EnumCtx) extends AbstractValueEnum {
-  import CborType._
+final class CborPrimitiveType(implicit enumCtx: EnumCtx) extends AbstractValueEnum {
+  import CborPrimitiveType._
 
-  def canRead(other: CborType): Boolean = this == other || ((this, other) match {
+  def canRead(other: CborPrimitiveType): Boolean = this == other || ((this, other) match {
     case (Raw, _) => true
     case (Short, Byte) => true
     case (Int, Short | Byte) => true
@@ -20,11 +20,11 @@ final class CborType(implicit enumCtx: EnumCtx) extends AbstractValueEnum {
     case _ => false
   })
 }
-object CborType extends AbstractValueEnumCompanion[CborType] {
-  final val Null, Boolean, Char: Value = new CborType
-  final val Byte, Short, Int, Long: Value = new CborType
-  final val Float, Double: Value = new CborType
-  final val String, Timestamp, Binary, Raw: Value = new CborType
+object CborPrimitiveType extends AbstractValueEnumCompanion[CborPrimitiveType] {
+  final val Null, Boolean, Char: Value = new CborPrimitiveType
+  final val Byte, Short, Int, Long: Value = new CborPrimitiveType
+  final val Float, Double: Value = new CborPrimitiveType
+  final val String, Timestamp, Binary, Raw: Value = new CborPrimitiveType
 }
 
 @flatten("case") sealed trait CborSchema
@@ -34,17 +34,36 @@ object CborType extends AbstractValueEnumCompanion[CborType] {
  * (although it may contain references).
  */
 sealed trait DirectCborSchema extends CborSchema
+object DirectCborSchema extends HasGenCodec[DirectCborSchema]
+
+/**
+ * [[CborSchema]] for a data type.
+ */
+sealed trait CborType extends CborSchema
+object CborType extends HasGenCodec[CborType]
+
+sealed trait DirectCborType extends CborType with DirectCborSchema
+object DirectCborType extends HasGenCodec[DirectCborType]
+
+/**
+ * [[CborSchema]] for an API (interface).
+ */
+sealed trait CborApi extends CborSchema
+object CborApi extends HasGenCodec[CborApi]
+
+sealed trait DirectCborApi extends CborApi with DirectCborSchema
+object DirectCborApi extends HasGenCodec[DirectCborApi]
 
 object CborSchema extends HasGenCodec[CborSchema] {
-  final case class Reference(name: String) extends CborSchema
+  final case class Reference(name: String) extends CborType with CborApi
 
-  final case class Primitive(tpe: CborType) extends DirectCborSchema
-  final case class Nullable(schema: CborSchema) extends DirectCborSchema
-  final case class Tuple(elemSchemas: Seq[CborSchema]) extends DirectCborSchema
-  final case class Collection(elemSchema: CborSchema) extends DirectCborSchema
-  final case class Dictionary(keySchema: CborSchema, valueSchema: CborSchema) extends DirectCborSchema
+  final case class Primitive(tpe: CborPrimitiveType) extends DirectCborType
+  final case class Nullable(schema: CborType) extends DirectCborType
+  final case class Tuple(elemSchemas: Seq[CborType]) extends DirectCborType
+  final case class Collection(elemSchema: CborType) extends DirectCborType
+  final case class Dictionary(keySchema: CborType, valueSchema: CborType) extends DirectCborType
 
-  final case class Record(fields: Seq[Field]) extends DirectCborSchema {
+  final case class Record(fields: Seq[Field]) extends DirectCborType {
     lazy val fieldMap: Map[String, Field] = fields.toMapBy(_.name)
 
     def toCborAdtMetadata[T](name: String, idx: Int): CborAdtMetadata.Record[T] =
@@ -61,7 +80,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
   }
   object Record extends HasGenCodec[Record]
 
-  final case class Union(cases: Seq[Case], @optionalParam defaultCase: Opt[String]) extends DirectCborSchema {
+  final case class Union(cases: Seq[Case], @optionalParam defaultCase: Opt[String]) extends DirectCborType {
     lazy val caseMap: Map[String, Case] = cases.toMapBy(_.name)
 
     def toCborAdtMetadata[T](name: String): CborAdtMetadata.Union[T] =
@@ -76,9 +95,13 @@ object CborSchema extends HasGenCodec[CborSchema] {
   }
   object Union extends HasGenCodec[Union]
 
+  final case class Api(methods: Seq[Method]) extends DirectCborApi {
+    val methodMap: Map[String, Method] = methods.toMapBy(_.name)
+  }
+
   final case class Field(
     name: String,
-    schema: CborSchema, // TODO lazify for recursive types
+    schema: CborType,
     @transientDefault optional: Boolean = false,
     @transientDefault hasDefaultValue: Boolean = false,
     @transientDefault transientDefault: Boolean = false,
@@ -93,22 +116,17 @@ object CborSchema extends HasGenCodec[CborSchema] {
     schema: CborSchema.Record,
   )
   object Case extends HasGenCodec[Case]
-}
 
-final case class CborApi(methods: Seq[CborApi.Method]) {
-  val methodMap: Map[String, CborApi.Method] = methods.toMapBy(_.name)
-}
-object CborApi {
   final case class Method(
     name: String,
     input: CborSchema.Record,
     result: MethodResult,
   )
+  object Method extends HasGenCodec[Method]
 
-  sealed trait MethodResult
-  object MethodResult {
-    final case class SubApi(subapi: CborApi) extends MethodResult
-    final case class Single(schema: CborSchema) extends MethodResult
-    final case class Stream(schema: CborSchema) extends MethodResult
+  @flatten("type") sealed trait MethodResult
+  object MethodResult extends HasGenCodec[MethodResult] {
+    final case class Subapi(subapi: CborApi) extends MethodResult
+    final case class Call(schema: CborType, stream: Boolean) extends MethodResult
   }
 }

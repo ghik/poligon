@@ -1,4 +1,5 @@
 package com.github.ghik.poligon.cborpc
+package example
 
 import com.avsystem.commons.serialization.flatten
 
@@ -14,9 +15,19 @@ object DataTypoExt extends CborAdtCompanion[DataTypoExt] {
   case object Nuffin extends DataTypoExt
 }
 
+trait Inyerface {
+  def thingies: Thingies
+}
+object Inyerface extends CborApiCompanion[Inyerface]
+
+trait Thingies {
+  
+}
+object Thingies extends CborApiCompanion[Thingies]
+
 object Testity {
   def main(args: Array[String]): Unit = {
     //    println(JsonStringOutput.writePretty(DataTypo.metadata.schema))
-    println(DataTypoExt.metadata.schema.canRead(DataTypo.metadata.schema))
+    //    println(DataTypoExt.metadata.schema.canRead(DataTypo.metadata.schema))
   }
 }
