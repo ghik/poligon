@@ -2,6 +2,9 @@ package com.github.ghik.poligon.cborpc
 package example
 
 import com.avsystem.commons.serialization.flatten
+import com.avsystem.commons.serialization.json.JsonStringOutput
+import monix.eval.Task
+import monix.reactive.Observable
 
 @flatten sealed trait DataTypo
 object DataTypo extends CborAdtCompanion[DataTypo] {
@@ -21,13 +24,13 @@ trait Inyerface {
 object Inyerface extends CborApiCompanion[Inyerface]
 
 trait Thingies {
-  
+  def singleThingy(typo: DataTypo, bul: Boolean): Task[DataTypo]
+  def manyThingies(idsy: List[String]): Observable[DataTypo]
 }
 object Thingies extends CborApiCompanion[Thingies]
 
 object Testity {
   def main(args: Array[String]): Unit = {
-    //    println(JsonStringOutput.writePretty(DataTypo.metadata.schema))
-    //    println(DataTypoExt.metadata.schema.canRead(DataTypo.metadata.schema))
+    println(JsonStringOutput.writePretty(CborSchemas[Inyerface]))
   }
 }

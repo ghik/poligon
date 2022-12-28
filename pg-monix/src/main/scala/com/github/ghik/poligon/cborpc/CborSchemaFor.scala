@@ -1,19 +1,27 @@
 package com.github.ghik.poligon.cborpc
 
 import com.avsystem.commons._
-import com.avsystem.commons.annotation.positioned
-import com.avsystem.commons.meta._
 import com.avsystem.commons.misc.{Bytes, Timestamp}
-import com.avsystem.commons.serialization._
-import com.avsystem.commons.serialization.cbor.{CborOptimizedCodecs, RawCbor}
+import com.avsystem.commons.serialization.TransparentWrapping
+import com.avsystem.commons.serialization.cbor.RawCbor
 
-trait CborTypeFor[T] { self =>
-  def dependencies: IIterable[CborTypeFor[_]]
-  def directType: DirectCborType
+sealed trait CborSchemaFor[T] {
+  def directSchema: DirectCborSchema
+  def dependencies: IIterable[CborSchemaFor[_]]
+
+  def schema: CborSchema
   def nameOpt: Opt[String] = Opt.Empty
+}
+object CborSchemaFor {
+  def apply[T](implicit schema: CborSchemaFor[T]): CborSchemaFor[T] = schema
+}
 
-  final def cborType: CborType =
-    nameOpt.mapOr(directType, CborSchema.Reference)
+trait CborTypeFor[T] extends CborSchemaFor[T] { self =>
+  def dependencies: IIterable[CborTypeFor[_]]
+  def directSchema: DirectCborType
+
+  final def schema: CborType =
+    nameOpt.mapOr(directSchema, CborSchema.Reference)
 
   final def forType[U]: CborTypeFor[U] =
     this.asInstanceOf[CborTypeFor[U]]
@@ -21,82 +29,15 @@ trait CborTypeFor[T] { self =>
   final def map[U](f: CborType => DirectCborType): CborTypeFor[U] =
     new CborTypeFor[U] {
       def dependencies: IIterable[CborTypeFor[_]] = self.dependencies
-      def directType: DirectCborType = f(self.cborType)
+      def directSchema: DirectCborType = f(self.schema)
     }
 }
-
-sealed trait CborAdtMetadata[T] extends CborTypeFor[T] with TypedMetadata[T] {
-  protected def nameInfo: NameInfo
-
-  final def name: String = nameInfo.rawName
-  override final def nameOpt: Opt[String] = name.opt
-}
-object CborAdtMetadata extends AdtMetadataCompanion[CborAdtMetadata] {
-  @positioned(positioned.here)
-  final class Union[T](
-    @reifyAnnot flatten: flatten,
-    @composite val nameInfo: NameInfo,
-    @multi @adtCaseMetadata val cases: List[UnionCase[_]],
-  ) extends CborAdtMetadata[T] {
-    def dependencies: IIterable[CborTypeFor[_]] = cases
-
-    def directType: CborSchema.Union = CborSchema.Union(
-      cases.map(_.rawCase),
-      cases.findOpt(_.defaultCase).map(_.nameInfo.rawName)
-    )
-  }
-
-  sealed trait UnionCase[T] extends CborAdtMetadata[T] {
-    def nameInfo: NameInfo
-    def defaultCase: Boolean
-    def directType: CborSchema.Record
-
-    final def rawCase: CborSchema.Case =
-      CborSchema.Case(nameInfo.rawName, directType)
-  }
-
-  @positioned(positioned.here)
-  final class Record[T](
-    @composite val nameInfo: NameInfo,
-    @isAnnotated[defaultCase] val defaultCase: Boolean,
-    @multi @adtParamMetadata val fields: List[CborField[_]],
-  ) extends UnionCase[T] {
-    def directType: CborSchema.Record =
-      CborSchema.Record(fields.map(_.rawField))
-
-    def dependencies: IIterable[CborTypeFor[_]] =
-      fields.map(_.schemaFor)
-  }
-
-  @positioned(positioned.here)
-  final class Singleton[T](
-    @composite val nameInfo: NameInfo,
-    @isAnnotated[defaultCase] val defaultCase: Boolean,
-    @infer @checked val valueOf: ValueOf[T],
-  ) extends UnionCase[T] {
-    def directType: CborSchema.Record = CborSchema.Record(Nil)
-    def dependencies: IIterable[CborTypeFor[_]] = Nil
-  }
-}
-
-trait CborAdtInstances[T] {
-  def codec: GenCodec[T]
-  def metadata: CborAdtMetadata[T]
-}
-
-abstract class CborAdtCompanion[T](implicit
-  instances: MacroInstances[CborOptimizedCodecs, CborAdtInstances[T]]
-) {
-  implicit lazy val codec: GenCodec[T] = instances(CborOptimizedCodecs, this).codec
-  implicit lazy val metadata: CborAdtMetadata[T] = instances(CborOptimizedCodecs, this).metadata
-}
-
 object CborTypeFor {
   def apply[T](implicit dt: CborTypeFor[T]): CborTypeFor[T] = dt
 
   def primitive[T](tpe: CborPrimitiveType): CborTypeFor[T] =
     new CborTypeFor[T] {
-      def directType: DirectCborType = CborSchema.Primitive(tpe)
+      def directSchema: DirectCborType = CborSchema.Primitive(tpe)
       def dependencies: IIterable[CborTypeFor[_]] = Nil
     }
 
@@ -135,8 +76,8 @@ object CborTypeFor {
   ): CborTypeFor[C] = new CborTypeFor[C] {
     def dependencies: IIterable[CborTypeFor[_]] =
       List(CborTypeFor[A], CborTypeFor[B])
-    def directType: DirectCborType =
-      f(CborTypeFor[A].cborType, CborTypeFor[B].cborType)
+    def directSchema: DirectCborType =
+      f(CborTypeFor[A].schema, CborTypeFor[B].schema)
   }
 
   implicit def mapType[M[X, Y] <: BMap[X, Y], K: CborTypeFor, V: CborTypeFor]: CborTypeFor[M[K, V]] =
@@ -145,4 +86,19 @@ object CborTypeFor {
   implicit def transparentWrapperType[R, T](implicit
     tw: TransparentWrapping[R, T], wrappedType: CborTypeFor[R]
   ): CborTypeFor[T] = wrappedType.forType[T]
+}
+
+trait CborApiFor[T] extends CborSchemaFor[T] {
+  def directSchema: DirectCborApi
+
+  final def schema: CborApi =
+    nameOpt.mapOr(directSchema, CborSchema.Reference)
+
+  def apiDependencies: IIterable[CborApiFor[_]]
+  def dataDependencies: IIterable[CborTypeFor[_]]
+
+  final def dependencies: IIterable[CborSchemaFor[_]] = apiDependencies ++ dataDependencies
+}
+object CborApiFor {
+  def apply[T](implicit api: CborApiFor[T]): CborApiFor[T] = api
 }

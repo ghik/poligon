@@ -22,7 +22,7 @@ final class CborField[T](
 
   def rawField: CborSchema.Field = CborSchema.Field(
     nameInfo.rawName,
-    schemaFor.cborType,
+    schemaFor.schema,
     optional,
     flags.hasDefaultValue || hasWhenAbsent,
     transientDefault,

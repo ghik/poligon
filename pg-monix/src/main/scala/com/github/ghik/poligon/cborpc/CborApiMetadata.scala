@@ -7,27 +7,14 @@ import com.avsystem.commons.rpc._
 import monix.eval.Task
 import monix.reactive.Observable
 
-trait CborApiFor[T] {
-  def directApi: DirectCborApi
-  def nameOpt: Opt[String] = Opt.Empty
-
-  final def cborApi: CborApi =
-    nameOpt.mapOr(directApi, CborSchema.Reference)
-
-  def apiDependencies: IIterable[CborApiFor[_]]
-  def dataDependencies: IIterable[CborTypeFor[_]]
-}
-object CborApiFor {
-  def apply[T](implicit api: CborApiFor[T]): CborApiFor[T] = api
-}
-
 final class CborApiMetadata[T](
   @composite val nameInfo: NameInfo,
   @multi @rpcMethodMetadata val methods: List[CborApiMetadata.Method[_]],
 ) extends CborApiFor[T] with TypedMetadata[T] {
   import CborApiMetadata._
 
-  def directApi: CborSchema.Api = CborSchema.Api(methods.map(_.rawMethod))
+  override def nameOpt: Opt[String] = nameInfo.rawName.opt
+  def directSchema: CborSchema.Api = CborSchema.Api(methods.map(_.rawMethod))
 
   lazy val apiDependencies: IIterable[CborApiFor[_]] =
     methods.view.map(_.result)
@@ -67,8 +54,8 @@ object CborApiMetadata extends RpcMetadataCompanion[CborApiMetadata] {
 
   sealed trait MethodResultFor[T] {
     def rawResult: CborSchema.MethodResult = this match {
-      case MethodResultFor.Call(tpe, stream) => CborSchema.MethodResult.Call(tpe.cborType, stream)
-      case MethodResultFor.Subapi(api) => CborSchema.MethodResult.Subapi(api.cborApi)
+      case MethodResultFor.Call(tpe, stream) => CborSchema.MethodResult.Call(tpe.schema, stream)
+      case MethodResultFor.Subapi(api) => CborSchema.MethodResult.Subapi(api.schema)
     }
   }
   object MethodResultFor {

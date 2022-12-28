@@ -3,8 +3,6 @@ package com.github.ghik.poligon.cborpc
 import com.avsystem.commons._
 import com.avsystem.commons.misc.{AbstractValueEnum, AbstractValueEnumCompanion, EnumCtx}
 import com.avsystem.commons.serialization._
-import com.avsystem.commons.serialization.cbor.CborAdtMetadata.CborKeyInfo
-import com.avsystem.commons.serialization.cbor.{CborAdtMetadata, cborDiscriminator, cborKey}
 
 final class CborPrimitiveType(implicit enumCtx: EnumCtx) extends AbstractValueEnum {
   import CborPrimitiveType._
@@ -64,39 +62,17 @@ object CborSchema extends HasGenCodec[CborSchema] {
   final case class Dictionary(keySchema: CborType, valueSchema: CborType) extends DirectCborType
 
   final case class Record(fields: Seq[Field]) extends DirectCborType {
-    lazy val fieldMap: Map[String, Field] = fields.toMapBy(_.name)
-
-    def toCborAdtMetadata[T](name: String, idx: Int): CborAdtMetadata.Record[T] =
-      new CborAdtMetadata.Record[T](
-        new CborKeyInfo(name, Opt.Empty, Opt(new cborKey[Int](idx, GenCodec[Int]))),
-        fields.iterator.zipWithIndex
-          .map { case (f, idx) =>
-            val cborKey = new cborKey[Int](idx, GenCodec[Int])
-            val keyInfo = new CborKeyInfo[Any](f.name, Opt.Empty, Opt(cborKey))
-            new CborAdtMetadata.Field[Any](keyInfo)
-          }
-          .toList
-      )
+    lazy val fieldsByName: Map[String, Field] = fields.toMapBy(_.name)
   }
   object Record extends HasGenCodec[Record]
 
   final case class Union(cases: Seq[Case], @optionalParam defaultCase: Opt[String]) extends DirectCborType {
-    lazy val caseMap: Map[String, Case] = cases.toMapBy(_.name)
-
-    def toCborAdtMetadata[T](name: String): CborAdtMetadata.Union[T] =
-      new CborAdtMetadata.Union[T](
-        name,
-        Opt(new cborDiscriminator[Int](0, GenCodec[Int])),
-        Opt(new flatten),
-        cases.iterator.zipWithIndex
-          .map({ case (c, idx) => c.schema.toCborAdtMetadata(c.name, idx) })
-          .toList
-      )
+    lazy val casesByName: Map[String, Case] = cases.toMapBy(_.name)
   }
   object Union extends HasGenCodec[Union]
 
   final case class Api(methods: Seq[Method]) extends DirectCborApi {
-    val methodMap: Map[String, Method] = methods.toMapBy(_.name)
+    lazy val methodsByName: Map[String, Method] = methods.toMapBy(_.name)
   }
 
   final case class Field(
@@ -111,15 +87,14 @@ object CborSchema extends HasGenCodec[CborSchema] {
   }
   object Field extends HasGenCodec[Field]
 
-  final case class Case(
-    name: String,
-    schema: CborSchema.Record,
-  )
-  object Case extends HasGenCodec[Case]
+  final case class Case(name: String) {
+    def schema: CborSchema.Reference = CborSchema.Reference(name)
+  }
+  object Case extends StringWrapperCompanion[Case]
 
   final case class Method(
     name: String,
-    input: CborSchema.Record,
+    @transientDefault @whenAbsent(CborSchema.Record(Nil)) input: CborSchema.Record,
     result: MethodResult,
   )
   object Method extends HasGenCodec[Method]
@@ -127,6 +102,6 @@ object CborSchema extends HasGenCodec[CborSchema] {
   @flatten("type") sealed trait MethodResult
   object MethodResult extends HasGenCodec[MethodResult] {
     final case class Subapi(subapi: CborApi) extends MethodResult
-    final case class Call(schema: CborType, stream: Boolean) extends MethodResult
+    final case class Call(schema: CborType, @transientDefault stream: Boolean = false) extends MethodResult
   }
 }
