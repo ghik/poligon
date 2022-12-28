@@ -28,7 +28,7 @@ trait CborTypeFor[T] extends CborSchemaFor[T] { self =>
 
   final def map[U](f: CborType => DirectCborType): CborTypeFor[U] =
     new CborTypeFor[U] {
-      def dependencies: IIterable[CborTypeFor[_]] = self.dependencies
+      def dependencies: IIterable[CborTypeFor[_]] = List(self)
       def directSchema: DirectCborType = f(self.schema)
     }
 }
@@ -41,20 +41,20 @@ object CborTypeFor {
       def dependencies: IIterable[CborTypeFor[_]] = Nil
     }
 
-  implicit val UnitType: CborTypeFor[Unit] = primitive(CborPrimitiveType.Null)
-  implicit val BooleanType: CborTypeFor[Boolean] = primitive(CborPrimitiveType.Boolean)
-  implicit val CharType: CborTypeFor[Char] = primitive(CborPrimitiveType.Char)
-  implicit val ByteType: CborTypeFor[Byte] = primitive(CborPrimitiveType.Byte)
-  implicit val ShortType: CborTypeFor[Short] = primitive(CborPrimitiveType.Short)
-  implicit val IntType: CborTypeFor[Int] = primitive(CborPrimitiveType.Int)
-  implicit val LongType: CborTypeFor[Long] = primitive(CborPrimitiveType.Long)
-  implicit val FloatType: CborTypeFor[Float] = primitive(CborPrimitiveType.Float)
-  implicit val DoubleType: CborTypeFor[Double] = primitive(CborPrimitiveType.Double)
-  implicit val StringType: CborTypeFor[String] = primitive(CborPrimitiveType.String)
-  implicit val TimestampType: CborTypeFor[Timestamp] = primitive(CborPrimitiveType.Timestamp)
-  implicit val ByteArrayType: CborTypeFor[Array[Byte]] = primitive(CborPrimitiveType.Binary)
-  implicit val BytesType: CborTypeFor[Bytes] = primitive(CborPrimitiveType.Binary)
-  implicit val RawType: CborTypeFor[RawCbor] = primitive(CborPrimitiveType.Raw)
+  implicit final val UnitType: CborTypeFor[Unit] = primitive(CborPrimitiveType.Null)
+  implicit final val BooleanType: CborTypeFor[Boolean] = primitive(CborPrimitiveType.Boolean)
+  implicit final val CharType: CborTypeFor[Char] = primitive(CborPrimitiveType.Char)
+  implicit final val ByteType: CborTypeFor[Byte] = primitive(CborPrimitiveType.Byte)
+  implicit final val ShortType: CborTypeFor[Short] = primitive(CborPrimitiveType.Short)
+  implicit final val IntType: CborTypeFor[Int] = primitive(CborPrimitiveType.Int)
+  implicit final val LongType: CborTypeFor[Long] = primitive(CborPrimitiveType.Long)
+  implicit final val FloatType: CborTypeFor[Float] = primitive(CborPrimitiveType.Float)
+  implicit final val DoubleType: CborTypeFor[Double] = primitive(CborPrimitiveType.Double)
+  implicit final val StringType: CborTypeFor[String] = primitive(CborPrimitiveType.String)
+  implicit final val TimestampType: CborTypeFor[Timestamp] = primitive(CborPrimitiveType.Timestamp)
+  implicit final val ByteArrayType: CborTypeFor[Array[Byte]] = primitive(CborPrimitiveType.Binary)
+  implicit final val BytesType: CborTypeFor[Bytes] = primitive(CborPrimitiveType.Binary)
+  implicit final val RawType: CborTypeFor[RawCbor] = primitive(CborPrimitiveType.Raw)
 
   implicit def optionType[T: CborTypeFor]: CborTypeFor[Option[T]] =
     CborTypeFor[T].map(CborSchema.Nullable)

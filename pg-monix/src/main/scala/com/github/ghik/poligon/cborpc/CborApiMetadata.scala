@@ -16,14 +16,14 @@ final class CborApiMetadata[T](
   override def nameOpt: Opt[String] = nameInfo.rawName.opt
   def directSchema: CborSchema.Api = CborSchema.Api(methods.map(_.rawMethod))
 
-  lazy val apiDependencies: IIterable[CborApiFor[_]] =
+  def apiDependencies: IIterable[CborApiFor[_]] =
     methods.view.map(_.result)
       .collect {
         case MethodResultFor.Subapi(api) => api
       }
       .toList
 
-  lazy val dataDependencies: IIterable[CborTypeFor[_]] =
+  def dataDependencies: IIterable[CborTypeFor[_]] =
     methods.flatMap(_.schemaDependencies)
 
   lazy val methodsByName: Map[String, Method[_]] =
@@ -34,8 +34,10 @@ object CborApiMetadata extends RpcMetadataCompanion[CborApiMetadata] {
   final class Method[T](
     @composite val nameInfo: NameInfo,
     @multi @rpcParamMetadata val params: List[CborField[_]],
-    @infer val result: MethodResultFor[T],
+    @infer lazyResult: => MethodResultFor[T],
   ) extends TypedMetadata[T] {
+    lazy val result: MethodResultFor[T] = lazyResult
+
     def rawMethod: CborSchema.Method = CborSchema.Method(
       nameInfo.rawName,
       CborSchema.Record(params.map(_.rawField)),

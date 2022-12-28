@@ -17,8 +17,10 @@ final class CborField[T](
   @isAnnotated[whenAbsent[T]] hasWhenAbsent: Boolean,
   @isAnnotated[transientDefault] transientDefault: Boolean,
   @reifyFlags flags: ParamFlags,
-  @infer val schemaFor: CborTypeFor[T],
+  @infer lazySchemaFor: => CborTypeFor[T],
 ) extends TypedMetadata[T] {
+
+  lazy val schemaFor: CborTypeFor[T] = lazySchemaFor
 
   def rawField: CborSchema.Field = CborSchema.Field(
     nameInfo.rawName,

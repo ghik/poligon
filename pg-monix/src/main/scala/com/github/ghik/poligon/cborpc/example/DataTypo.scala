@@ -8,7 +8,8 @@ import monix.reactive.Observable
 
 @flatten sealed trait DataTypo
 object DataTypo extends CborAdtCompanion[DataTypo] {
-  case class Sumfin(int: Int, list: List[String]) extends DataTypo
+  case class Sumfin(int: Int, list: List[Sumfin]) extends DataTypo
+  object Sumfin extends CborAdtCompanion[Sumfin]
   case object Nuffin extends DataTypo
 }
 
@@ -24,6 +25,8 @@ trait Inyerface {
 object Inyerface extends CborApiCompanion[Inyerface]
 
 trait Thingies {
+  def moreThingies: Thingies
+
   def singleThingy(typo: DataTypo, bul: Boolean): Task[DataTypo]
   def manyThingies(idsy: List[String]): Observable[DataTypo]
 }

@@ -27,7 +27,7 @@ object CborSchemas extends TransparentWrapperCompanion[Map[String, DirectCborSch
         val directSchema = schema.directSchema
         tmpRegistry.get(name) match {
           case None =>
-            tmpRegistry(name) = directSchema
+            tmpRegistry(name) = directSchema // MUST happen BEFORE traversing dependencies to handle recursive types
             schema.dependencies.foreach(traverse)
           case Some(`directSchema`) => // already registered, do nothing
           case Some(_) => throw new IllegalStateException(s"Multiple conflicting schemas named $name detected")
