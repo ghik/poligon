@@ -4,7 +4,6 @@ import com.avsystem.commons._
 import com.avsystem.commons.annotation.positioned
 import com.avsystem.commons.meta._
 import com.avsystem.commons.serialization._
-import com.avsystem.commons.serialization.cbor.CborOptimizedCodecs
 
 sealed trait CborAdtMetadata[T] extends CborTypeFor[T] with TypedMetadata[T] {
   protected def nameInfo: NameInfo
@@ -22,6 +21,7 @@ object CborAdtMetadata extends AdtMetadataCompanion[CborAdtMetadata] {
     def dependencies: IIterable[CborTypeFor[_]] = cases
 
     def directSchema: CborSchema.Union = CborSchema.Union(
+      flatten.caseFieldName,
       cases.map(_.rawCase),
       cases.findOpt(_.defaultCase).map(_.nameInfo.rawName)
     )
@@ -66,10 +66,8 @@ trait CborAdtInstances[T] {
 }
 
 abstract class CborAdtCompanion[T](implicit
-  instances: MacroInstances[CborOptimizedCodecs, CborAdtInstances[T]]
+  instances: MacroInstances[SchemaBasedCborImplicits, CborAdtInstances[T]]
 ) {
-  implicit lazy val codec: GenCodec[T] = instances(CborOptimizedCodecs, this).codec
-  implicit lazy val metadata: CborAdtMetadata[T] = instances(CborOptimizedCodecs, this).metadata
+  implicit lazy val codec: GenCodec[T] = instances(SchemaBasedCborImplicits, this).codec
+  implicit lazy val metadata: CborAdtMetadata[T] = instances(SchemaBasedCborImplicits, this).metadata
 }
-
-

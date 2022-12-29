@@ -1,15 +1,20 @@
 package com.github.ghik.poligon.cborpc
 package example
 
-import com.avsystem.commons.serialization.flatten
-import com.avsystem.commons.serialization.json.JsonStringOutput
+import com.avsystem.commons.serialization.cbor.{CborKeyCodec, CborOutput, RawCbor}
+import com.avsystem.commons.serialization.{GenCodec, SizePolicy, flatten}
+import com.github.ghik.poligon.cborpc.codec.SchemaAwareCborOutput
 import monix.eval.Task
 import monix.reactive.Observable
 
+import java.io.{ByteArrayOutputStream, DataOutputStream}
+
+case class Thingy(int: Int, str: String)
+object Thingy extends CborAdtCompanion[Thingy]
+
 @flatten sealed trait DataTypo
 object DataTypo extends CborAdtCompanion[DataTypo] {
-  case class Sumfin(int: Int, list: List[Sumfin]) extends DataTypo
-  object Sumfin extends CborAdtCompanion[Sumfin]
+  case class Sumfin(int: Int, list: List[DataTypo], mappy: Map[Thingy, Thingy]) extends DataTypo
   case object Nuffin extends DataTypo
 }
 
@@ -34,6 +39,11 @@ object Thingies extends CborApiCompanion[Thingies]
 
 object Testity {
   def main(args: Array[String]): Unit = {
-    println(JsonStringOutput.writePretty(CborSchemas[Inyerface]))
+    val schemas = CborSchemas[DataTypo]
+    val baos = new ByteArrayOutputStream
+    val cborOutput = new CborOutput(new DataOutputStream(baos), CborKeyCodec.Default, SizePolicy.Required)
+    val output = new SchemaAwareCborOutput(cborOutput, schemas, CborTypeFor[DataTypo].schema)
+    GenCodec[DataTypo].write(output, DataTypo.Sumfin(42, List(DataTypo.Nuffin), Map(Thingy(1, "fuu") -> Thingy(2, "fag"))))
+    println(RawCbor(baos.toByteArray))
   }
 }

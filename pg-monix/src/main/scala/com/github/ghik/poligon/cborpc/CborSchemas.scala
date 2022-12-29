@@ -14,6 +14,9 @@ final case class CborSchemas(registry: Map[String, DirectCborSchema]) {
   def resolveType(tpe: CborType): DirectCborType =
     resolveSchema[CborType, DirectCborType](tpe)
 
+  def resolveRecord(tpe: CborType): CborSchema.Record =
+    resolveSchema[CborType, CborSchema.Record](tpe)
+
   def resolveApi(api: CborApi): DirectCborApi =
     resolveSchema[CborApi, DirectCborApi](api)
 }

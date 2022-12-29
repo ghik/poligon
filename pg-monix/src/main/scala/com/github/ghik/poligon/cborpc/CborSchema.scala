@@ -57,27 +57,35 @@ object CborSchema extends HasGenCodec[CborSchema] {
 
   final case class Primitive(tpe: CborPrimitiveType) extends DirectCborType
   final case class Nullable(schema: CborType) extends DirectCborType
-  final case class Tuple(elemSchemas: Seq[CborType]) extends DirectCborType
   final case class Collection(elemSchema: CborType) extends DirectCborType
   final case class Dictionary(keySchema: CborType, valueSchema: CborType) extends DirectCborType
 
   final case class Record(fields: Seq[Field]) extends DirectCborType {
-    lazy val fieldsByName: Map[String, Field] = fields.toMapBy(_.name)
+    lazy val fieldsByName: Map[String, Indexed[Field]] =
+      fields.iterator.zipWithIndex.map(Indexed[Field]).toMapBy(_.value.name)
   }
   object Record extends HasGenCodec[Record]
 
-  final case class Union(cases: Seq[Case], @optionalParam defaultCase: Opt[String]) extends DirectCborType {
-    lazy val casesByName: Map[String, Case] = cases.toMapBy(_.name)
+  final case class Union(
+    @transientDefault @whenAbsent("_case") discriminator: String,
+    cases: Seq[Case],
+    @optionalParam defaultCaseName: Opt[String],
+  ) extends DirectCborType {
+    lazy val casesByName: Map[String, Indexed[Case]] =
+      cases.iterator.zipWithIndex.map(Indexed[Case]).toMapBy(_.value.name)
+    lazy val defaultCase: Opt[Indexed[Case]] =
+      defaultCaseName.map(casesByName)
   }
   object Union extends HasGenCodec[Union]
 
   final case class Api(methods: Seq[Method]) extends DirectCborApi {
-    lazy val methodsByName: Map[String, Method] = methods.toMapBy(_.name)
+    lazy val methodsByName: Map[String, Indexed[Method]] =
+      methods.iterator.zipWithIndex.map(Indexed[Method]).toMapBy(_.value.name)
   }
 
   final case class Field(
     name: String,
-    schema: CborType,
+    tpe: CborType,
     @transientDefault optional: Boolean = false,
     @transientDefault hasDefaultValue: Boolean = false,
     @transientDefault transientDefault: Boolean = false,
@@ -103,5 +111,13 @@ object CborSchema extends HasGenCodec[CborSchema] {
   object MethodResult extends HasGenCodec[MethodResult] {
     final case class Subapi(subapi: CborApi) extends MethodResult
     final case class Call(schema: CborType, @transientDefault stream: Boolean = false) extends MethodResult
+  }
+
+  final case class Indexed[+T](
+    value: T,
+    index: Int,
+  )
+  object Indexed {
+    def apply[T](t: (T, Int)): Indexed[T] = apply(t._1, t._2)
   }
 }
