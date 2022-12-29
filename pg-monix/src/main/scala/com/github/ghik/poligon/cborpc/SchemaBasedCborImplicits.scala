@@ -4,7 +4,7 @@ import com.avsystem.commons.jiop.JFactory
 import com.avsystem.commons.serialization.GenCodec.ReadFailure
 import com.avsystem.commons.serialization.{GenCodec, Input, Output}
 import com.avsystem.commons.{BIterable, BMap, JMap}
-import com.github.ghik.poligon.cborpc.codec.SchemaAwareCborMap
+import com.github.ghik.poligon.cborpc.serialization.SchemaAwareCborMap
 
 import scala.collection.compat.Factory
 

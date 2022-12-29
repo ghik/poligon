@@ -3,7 +3,7 @@ package example
 
 import com.avsystem.commons.serialization.cbor.{CborKeyCodec, CborOutput, RawCbor}
 import com.avsystem.commons.serialization.{GenCodec, SizePolicy, flatten}
-import com.github.ghik.poligon.cborpc.codec.SchemaAwareCborOutput
+import com.github.ghik.poligon.cborpc.serialization.SchemaAwareCborOutput
 import monix.eval.Task
 import monix.reactive.Observable
 

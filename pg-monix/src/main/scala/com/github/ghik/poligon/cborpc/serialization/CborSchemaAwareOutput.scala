@@ -1,4 +1,4 @@
-package com.github.ghik.poligon.cborpc.codec
+package com.github.ghik.poligon.cborpc.serialization
 
 import com.avsystem.commons._
 import com.avsystem.commons.serialization.GenCodec.WriteFailure
