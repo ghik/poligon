@@ -3,6 +3,7 @@ package com.github.ghik.poligon.cborpc
 import com.avsystem.commons._
 import com.avsystem.commons.misc.{AbstractValueEnum, AbstractValueEnumCompanion, EnumCtx}
 import com.avsystem.commons.serialization._
+import com.github.ghik.poligon.cborpc.util.Indexed
 
 final class CborPrimitiveType(implicit enumCtx: EnumCtx) extends AbstractValueEnum {
   import CborPrimitiveType._
@@ -111,13 +112,5 @@ object CborSchema extends HasGenCodec[CborSchema] {
   object MethodResult extends HasGenCodec[MethodResult] {
     final case class Subapi(subapi: CborApi) extends MethodResult
     final case class Call(schema: CborType, @transientDefault stream: Boolean = false) extends MethodResult
-  }
-
-  final case class Indexed[+T](
-    value: T,
-    index: Int,
-  )
-  object Indexed {
-    def apply[T](t: (T, Int)): Indexed[T] = apply(t._1, t._2)
   }
 }
