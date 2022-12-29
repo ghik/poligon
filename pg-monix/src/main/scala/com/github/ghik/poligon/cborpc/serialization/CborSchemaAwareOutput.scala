@@ -4,14 +4,9 @@ import com.avsystem.commons._
 import com.avsystem.commons.serialization.GenCodec.WriteFailure
 import com.avsystem.commons.serialization._
 import com.avsystem.commons.serialization.cbor.{CborListOutput, CborObjectOutput, CborOutput}
-import com.github.ghik.poligon.cborpc.{CborSchema, CborSchemas, CborType, DirectCborType}
+import com.github.ghik.poligon.cborpc._
 
 import scala.annotation.tailrec
-
-case class SchemaAwareCborMap[K: GenCodec, V: GenCodec]() extends TypeMarker[BIterable[(K, V)]] {
-  def keyCodec: GenCodec[K] = GenCodec[K]
-  def valueCodec: GenCodec[V] = GenCodec[V]
-}
 
 trait BaseSchemaAwareCborOutput {
   protected def schemas: CborSchemas

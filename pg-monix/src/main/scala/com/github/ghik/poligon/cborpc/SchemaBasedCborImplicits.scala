@@ -2,9 +2,8 @@ package com.github.ghik.poligon.cborpc
 
 import com.avsystem.commons.jiop.JFactory
 import com.avsystem.commons.serialization.GenCodec.ReadFailure
-import com.avsystem.commons.serialization.{GenCodec, Input, Output}
+import com.avsystem.commons.serialization.{GenCodec, Input, Output, TypeMarker}
 import com.avsystem.commons.{BIterable, BMap, JMap}
-import com.github.ghik.poligon.cborpc.serialization.SchemaAwareCborMap
 
 import scala.collection.compat.Factory
 
@@ -33,3 +32,8 @@ trait SchemaBasedCborImplicits {
   }
 }
 object SchemaBasedCborImplicits extends SchemaBasedCborImplicits
+
+case class SchemaAwareCborMap[K: GenCodec, V: GenCodec]() extends TypeMarker[BIterable[(K, V)]] {
+  def keyCodec: GenCodec[K] = GenCodec[K]
+  def valueCodec: GenCodec[V] = GenCodec[V]
+}
