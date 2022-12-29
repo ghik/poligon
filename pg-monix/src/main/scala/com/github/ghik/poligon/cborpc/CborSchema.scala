@@ -61,7 +61,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
   final case class Collection(elemSchema: CborType) extends DirectCborType
   final case class Dictionary(keySchema: CborType, valueSchema: CborType) extends DirectCborType
 
-  final case class Record(fields: Seq[Field]) extends DirectCborType {
+  final case class Record(fields: IndexedSeq[Field]) extends DirectCborType {
     lazy val fieldsByName: Map[String, Indexed[Field]] =
       fields.iterator.zipWithIndex.map(Indexed[Field]).toMapBy(_.value.name)
   }
@@ -69,7 +69,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
 
   final case class Union(
     @transientDefault @whenAbsent("_case") discriminator: String,
-    cases: Seq[Case],
+    cases: IndexedSeq[Case],
     @optionalParam defaultCaseName: Opt[String],
   ) extends DirectCborType {
     lazy val casesByName: Map[String, Indexed[Case]] =
@@ -79,7 +79,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
   }
   object Union extends HasGenCodec[Union]
 
-  final case class Api(methods: Seq[Method]) extends DirectCborApi {
+  final case class Api(methods: IndexedSeq[Method]) extends DirectCborApi {
     lazy val methodsByName: Map[String, Indexed[Method]] =
       methods.iterator.zipWithIndex.map(Indexed[Method]).toMapBy(_.value.name)
   }
@@ -103,7 +103,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
 
   final case class Method(
     name: String,
-    @transientDefault @whenAbsent(CborSchema.Record(Nil)) input: CborSchema.Record,
+    @transientDefault @whenAbsent(CborSchema.Record(IndexedSeq())) input: CborSchema.Record,
     result: MethodResult,
   )
   object Method extends HasGenCodec[Method]

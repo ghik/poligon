@@ -1,9 +1,9 @@
 package com.github.ghik.poligon.cborpc
 package example
 
-import com.avsystem.commons.serialization.cbor.{CborKeyCodec, CborOutput, RawCbor}
+import com.avsystem.commons.serialization.cbor._
 import com.avsystem.commons.serialization.{GenCodec, SizePolicy, flatten}
-import com.github.ghik.poligon.cborpc.serialization.SchemaAwareCborOutput
+import com.github.ghik.poligon.cborpc.serialization.{SchemaAwareCborInput, SchemaAwareCborOutput}
 import monix.eval.Task
 import monix.reactive.Observable
 
@@ -39,11 +39,21 @@ object Thingies extends CborApiCompanion[Thingies]
 
 object Testity {
   def main(args: Array[String]): Unit = {
+    val tpe = CborTypeFor[DataTypo].schema
+    val data = DataTypo.Sumfin(42, List(DataTypo.Nuffin), Map(Thingy(1, "fuu") -> Thingy(2, "fag")))
+
     val schemas = CborSchemas[DataTypo]
     val baos = new ByteArrayOutputStream
     val cborOutput = new CborOutput(new DataOutputStream(baos), CborKeyCodec.Default, SizePolicy.Required)
-    val output = new SchemaAwareCborOutput(cborOutput, schemas, CborTypeFor[DataTypo].schema)
-    GenCodec[DataTypo].write(output, DataTypo.Sumfin(42, List(DataTypo.Nuffin), Map(Thingy(1, "fuu") -> Thingy(2, "fag"))))
-    println(RawCbor(baos.toByteArray))
+    val output = new SchemaAwareCborOutput(cborOutput, schemas, tpe)
+    GenCodec[DataTypo].write(output, data)
+    val rawCbor = RawCbor(baos.toByteArray)
+    println(rawCbor)
+
+    val cborInput = new CborInput(new CborReader(rawCbor), CborKeyCodec.Default)
+    val input = new SchemaAwareCborInput(cborInput, schemas, tpe)
+    val alsoData = GenCodec[DataTypo].read(input)
+
+    println(alsoData)
   }
 }

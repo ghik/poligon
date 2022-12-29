@@ -9,7 +9,7 @@ import monix.reactive.Observable
 
 final class CborApiMetadata[T](
   @composite val nameInfo: NameInfo,
-  @multi @rpcMethodMetadata val methods: List[CborApiMetadata.Method[_]],
+  @multi @rpcMethodMetadata val methods: IndexedSeq[CborApiMetadata.Method[_]],
 ) extends CborApiFor[T] with TypedMetadata[T] {
   import CborApiMetadata._
 
@@ -33,7 +33,7 @@ object CborApiMetadata extends RpcMetadataCompanion[CborApiMetadata] {
   @positioned(positioned.here)
   final class Method[T](
     @composite val nameInfo: NameInfo,
-    @multi @rpcParamMetadata val params: List[CborField[_]],
+    @multi @rpcParamMetadata val params: IndexedSeq[CborField[_]],
     @infer lazyResult: => MethodResultFor[T],
   ) extends TypedMetadata[T] {
     lazy val result: MethodResultFor[T] = lazyResult

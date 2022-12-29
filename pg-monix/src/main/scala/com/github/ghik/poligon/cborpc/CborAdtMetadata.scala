@@ -16,7 +16,7 @@ object CborAdtMetadata extends AdtMetadataCompanion[CborAdtMetadata] {
   final class Union[T](
     @reifyAnnot flatten: flatten,
     @composite val nameInfo: NameInfo,
-    @multi @adtCaseMetadata val cases: List[UnionCase[_]],
+    @multi @adtCaseMetadata val cases: IndexedSeq[UnionCase[_]],
   ) extends CborAdtMetadata[T] {
     def dependencies: IIterable[CborTypeFor[_]] = cases
 
@@ -40,7 +40,7 @@ object CborAdtMetadata extends AdtMetadataCompanion[CborAdtMetadata] {
   final class Record[T](
     @composite val nameInfo: NameInfo,
     @isAnnotated[defaultCase] val defaultCase: Boolean,
-    @multi @adtParamMetadata val fields: List[CborField[_]],
+    @multi @adtParamMetadata val fields: IndexedSeq[CborField[_]],
   ) extends UnionCase[T] {
     def directSchema: CborSchema.Record =
       CborSchema.Record(fields.map(_.rawField))
@@ -55,7 +55,7 @@ object CborAdtMetadata extends AdtMetadataCompanion[CborAdtMetadata] {
     @isAnnotated[defaultCase] val defaultCase: Boolean,
     @infer @checked val valueOf: ValueOf[T],
   ) extends UnionCase[T] {
-    def directSchema: CborSchema.Record = CborSchema.Record(Nil)
+    def directSchema: CborSchema.Record = CborSchema.Record(Vector())
     def dependencies: IIterable[CborTypeFor[_]] = Nil
   }
 }

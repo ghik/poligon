@@ -1,29 +1,15 @@
 package com.github.ghik.poligon.cborpc.serialization
 
-import com.avsystem.commons._
 import com.avsystem.commons.serialization.GenCodec.WriteFailure
 import com.avsystem.commons.serialization._
 import com.avsystem.commons.serialization.cbor.{CborListOutput, CborObjectOutput, CborOutput}
 import com.github.ghik.poligon.cborpc._
 
-import scala.annotation.tailrec
-
-trait BaseSchemaAwareCborOutput {
-  protected def schemas: CborSchemas
-
-  @tailrec
-  protected final def nonNullable(tpe: CborType): DirectCborType =
-    schemas.resolveType(tpe) match {
-      case CborSchema.Nullable(schema) => nonNullable(schema)
-      case tpe => tpe
-    }
-}
-
 class SchemaAwareCborOutput(
   protected val wrapped: CborOutput,
   protected val schemas: CborSchemas,
   tpe: CborType,
-) extends OutputWrapper with BaseSchemaAwareCborOutput {
+) extends OutputWrapper with SchemaUtils {
 
   override def writeList(): ListOutput = nonNullable(tpe) match {
     case CborSchema.Collection(elemSchema) =>
@@ -41,10 +27,11 @@ class SchemaAwareCborOutput(
       throw new WriteFailure("unexpected object")
   }
 
-  private def writeSchemaAwareMap[K, V](marker: SchemaAwareCborMap[K, V], entries: BIterable[(K, V)]): Unit =
+  def writeSchemaAwareMap[K, V, M](marker: SchemaAwareCborMap[K, V, M], value: M): Unit =
     nonNullable(tpe) match {
       case CborSchema.Dictionary(keyTpe, valueTpe) =>
         val objOutput = wrapped.writeObject()
+        val entries = marker.toIterable(value)
         objOutput.declareSizeOf(entries)
         entries.foreach { case (key, value) =>
           marker.keyCodec.write(new SchemaAwareCborOutput(objOutput.writeKey(), schemas, keyTpe), key)
@@ -56,8 +43,8 @@ class SchemaAwareCborOutput(
     }
 
   override def writeCustom[T](typeMarker: TypeMarker[T], value: T): Boolean = typeMarker match {
-    case tm: SchemaAwareCborMap[k, v] =>
-      writeSchemaAwareMap(tm, value: BIterable[(k, v)])
+    case tm: SchemaAwareCborMap[k, v, m] =>
+      writeSchemaAwareMap(tm, value: m)
       true
     case _ =>
       super.writeCustom(typeMarker, value)
@@ -68,7 +55,7 @@ class SchemaAwareCborListOutput(
   protected val wrapped: CborListOutput,
   protected val schemas: CborSchemas,
   elemTpe: CborType,
-) extends ListOutputWrapper with BaseSchemaAwareCborOutput {
+) extends ListOutputWrapper with SchemaUtils {
   override def writeElement(): Output =
     new SchemaAwareCborOutput(wrapped.writeElement(), schemas, elemTpe)
 }
@@ -77,7 +64,7 @@ class CborRecordOutput(
   protected val wrapped: CborObjectOutput,
   protected val schemas: CborSchemas,
   tpe: CborSchema.Record,
-) extends ObjectOutputWrapper with BaseSchemaAwareCborOutput {
+) extends ObjectOutputWrapper with SchemaUtils {
   override def writeField(key: String): Output =
     tpe.fieldsByName.get(key) match {
       case None => NoOutput // ignore field
@@ -92,7 +79,7 @@ class CborUnionOutput(
   protected val wrapped: CborObjectOutput,
   protected val schemas: CborSchemas,
   tpe: CborSchema.Union,
-) extends ObjectOutputWrapper with BaseSchemaAwareCborOutput {
+) extends ObjectOutputWrapper with SchemaUtils {
   private[this] var recordOutput: CborRecordOutput = _
 
   private def onCaseChosen(c: CborSchema.Case): Unit = {
@@ -102,7 +89,7 @@ class CborUnionOutput(
   override def writeField(key: String): Output =
     if (key == tpe.discriminator) {
       wrapped.writeKey().writeInt(0)
-      new DiscriminatorFieldOutput(wrapped.writeValue(), tpe, onCaseChosen)
+      new CborDiscriminatorFieldOutput(wrapped.writeValue(), tpe, onCaseChosen)
     } else {
       if (recordOutput eq null) {
         val defaultCase = tpe.defaultCase.map(_.value)
@@ -113,7 +100,7 @@ class CborUnionOutput(
     }
 }
 
-class DiscriminatorFieldOutput(
+class CborDiscriminatorFieldOutput(
   wrapped: CborOutput,
   tpe: CborSchema.Union,
   onCaseChosen: CborSchema.Case => Unit
