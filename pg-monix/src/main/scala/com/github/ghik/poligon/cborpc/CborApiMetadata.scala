@@ -38,11 +38,13 @@ object CborApiMetadata extends RpcMetadataCompanion[CborApiMetadata] {
   ) extends TypedMetadata[T] {
     lazy val result: MethodResultFor[T] = lazyResult
 
-    def rawMethod: CborSchema.Method = CborSchema.Method(
-      nameInfo.rawName,
-      CborSchema.Record(params.map(_.rawField)),
-      result.rawResult,
-    )
+    def rawMethod: CborSchema.Method = result match {
+      case MethodResultFor.Subapi(api) =>
+        CborSchema.SubapiMethod(nameInfo.rawName, api.schema)
+      case MethodResultFor.Call(api, stream) =>
+        val input = CborSchema.Record(params.map(_.rawField))
+        CborSchema.CallMethod(nameInfo.rawName, input, api.schema, stream)
+    }
 
     lazy val paramsByName: Map[String, CborField[_]] =
       params.toMapBy(_.nameInfo.rawName)
@@ -54,12 +56,7 @@ object CborApiMetadata extends RpcMetadataCompanion[CborApiMetadata] {
     }
   }
 
-  sealed trait MethodResultFor[T] {
-    def rawResult: CborSchema.MethodResult = this match {
-      case MethodResultFor.Call(tpe, stream) => CborSchema.MethodResult.Call(tpe.schema, stream)
-      case MethodResultFor.Subapi(api) => CborSchema.MethodResult.Subapi(api.schema)
-    }
-  }
+  sealed trait MethodResultFor[T]
   object MethodResultFor {
     final case class Call[T](schema: CborTypeFor[_], stream: Boolean) extends MethodResultFor[T]
     final case class Subapi[T](api: CborApiFor[T]) extends MethodResultFor[T]

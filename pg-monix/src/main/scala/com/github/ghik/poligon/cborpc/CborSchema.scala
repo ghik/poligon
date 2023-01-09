@@ -101,16 +101,19 @@ object CborSchema extends HasGenCodec[CborSchema] {
   }
   object Case extends StringWrapperCompanion[Case]
 
-  final case class Method(
+  @flatten("type") sealed trait Method {
+    def name: String
+  }
+
+  final case class SubapiMethod(
+    name: String,
+    result: CborApi
+  ) extends Method
+
+  final case class CallMethod(
     name: String,
     @transientDefault @whenAbsent(CborSchema.Record(IndexedSeq())) input: CborSchema.Record,
-    result: MethodResult,
-  )
-  object Method extends HasGenCodec[Method]
-
-  @flatten("type") sealed trait MethodResult
-  object MethodResult extends HasGenCodec[MethodResult] {
-    final case class Subapi(subapi: CborApi) extends MethodResult
-    final case class Call(schema: CborType, @transientDefault stream: Boolean = false) extends MethodResult
-  }
+    result: CborType,
+    @transientDefault stream: Boolean = false
+  ) extends Method
 }

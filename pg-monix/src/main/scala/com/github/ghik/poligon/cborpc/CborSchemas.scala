@@ -11,6 +11,9 @@ final case class CborSchemas(registry: Map[String, DirectCborSchema]) {
     case d: D => d
   }
 
+  def resolveType(name: String): DirectCborType =
+    resolveType(CborSchema.Reference(name))
+
   def resolveType(tpe: CborType): DirectCborType =
     resolveSchema[CborType, DirectCborType](tpe)
 
@@ -19,6 +22,15 @@ final case class CborSchemas(registry: Map[String, DirectCborSchema]) {
 
   def resolveApi(api: CborApi): DirectCborApi =
     resolveSchema[CborApi, DirectCborApi](api)
+
+  def resolveApi(name: String): DirectCborApi =
+    resolveApi(CborSchema.Reference(name))
+
+  def qualifiedApi(name: String): QualifiedApi =
+    qualifiedApi(CborSchema.Reference(name))
+
+  def qualifiedApi(api: CborApi): QualifiedApi =
+    new QualifiedApi(Left(this), api)
 }
 
 object CborSchemas extends TransparentWrapperCompanion[Map[String, DirectCborSchema], CborSchemas] {
@@ -43,3 +55,4 @@ object CborSchemas extends TransparentWrapperCompanion[Map[String, DirectCborSch
     CborSchemas(tmpRegistry.to(ITreeMap))
   }
 }
+
