@@ -30,6 +30,7 @@ object StuffImpl extends Stuff {
 
 object Main {
   def main(args: Array[String]): Unit = {
+    import monix.execution.Scheduler.Implicits.global
     val server = new Server(8080)
     val handler = new ServletContextHandler
     handler.addServlet(new ServletHolder(RestServlet[Stuff](StuffImpl, 9.seconds)), "/*")
