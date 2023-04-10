@@ -104,6 +104,7 @@ object CborSchema extends HasGenCodec[CborSchema] {
   @flatten("type") sealed trait Method {
     def name: String
   }
+  object Method extends HasGenCodec[Method]
 
   final case class SubapiMethod(
     name: String,
