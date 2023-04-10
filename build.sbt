@@ -1,7 +1,7 @@
 
 
 val commonSettings = Seq(
-  scalaVersion := "2.13.6",
+  scalaVersion := "2.13.10",
 
   Compile / scalacOptions ++= Seq(
     "-encoding", "utf-8",
@@ -24,6 +24,7 @@ val commonSettings = Seq(
 
   Test / scalacOptions := (Compile / scalacOptions).value,
   Compile / doc / sources := Seq.empty,
+  Compile / compileOrder := CompileOrder.Mixed,
 
   libraryDependencies ++= Seq(
     "com.avsystem.commons" %% "commons-core" % Version.AvsCommons,
