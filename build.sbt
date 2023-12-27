@@ -1,7 +1,7 @@
 
 
 val commonSettings = Seq(
-  scalaVersion := "2.13.10",
+  scalaVersion := "2.13.12",
 
   Compile / scalacOptions ++= Seq(
     "-encoding", "utf-8",
