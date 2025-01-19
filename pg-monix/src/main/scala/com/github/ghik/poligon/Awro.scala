@@ -2,7 +2,7 @@ package com.github.ghik.poligon
 
 import com.avsystem.commons._
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder, SchemaFor}
-import org.apache.avro.Resolver
+import org.apache.avro.{Resolver, SchemaFormatter}
 import org.apache.avro.Resolver._
 import org.apache.avro.generic.GenericDatumWriter
 
@@ -54,7 +54,7 @@ object Awro {
   def main(args: Array[String]): Unit = {
     val s1 = SchemaFor.gen[RecW].schema
     val s2 = SchemaFor.gen[RecR].schema
-    println(s1.toString(true))
+    println(SchemaFormatter.format("json/pretty", s1))
     val baos = new ByteArrayOutputStream
     val aos = AvroOutputStream.binary[RecW].to(baos).build()
     aos.write(RecW("text", "fuuu"))

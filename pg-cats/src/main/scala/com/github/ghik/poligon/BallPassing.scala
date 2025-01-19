@@ -16,12 +16,12 @@ final class Player(players: Array[Player], i: Int) extends BallHandle {
       case `step` =>
         Thread.onSpinWait()
         loop(step)
-      case step if step < 10_000_000 =>
-        val ns = step + 1
+      case s if s < 10_000_000 =>
+        val ns = s + 1
         nextPlayer.nextStep(ns)
         loop(ns)
-      case step =>
-        nextPlayer.nextStep(step + 1)
+      case s =>
+        nextPlayer.nextStep(s + 1)
     }
     val start = System.nanoTime()
     loop(0)
